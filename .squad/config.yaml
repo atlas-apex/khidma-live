@@ -1,0 +1,13 @@
+version: 1
+project:
+  name: khidma
+  primaryLanguage: javascript
+  projectRoots:
+    - .
+tracker:
+  type: none
+naming:
+  includeTrackerId: false
+  globalSequence: true
+agents:
+  - claude-code
