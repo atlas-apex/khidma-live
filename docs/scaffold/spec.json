@@ -1,0 +1,24 @@
+{
+  "specVersion": "0.1",
+  "scale": "small",
+  "createdAt": "2026-10-15T16:40:00Z",
+  "answers": {
+    "reuseConfirm": {"value": "Use these", "source": "owner"},
+    "hostKind": {"value": "company cloud", "source": "onboarding"},
+    "hostProvider": {"value": "AWS", "source": "onboarding"},
+    "storage": {"value": "DynamoDB", "source": "onboarding"},
+    "shape": {"value": "API service", "source": "owner"},
+    "scale": {"value": "small", "source": "owner"},
+    "dataSensitivity": {"value": "none", "source": "owner"},
+    "releaseCheck": {"value": "checks", "source": "default"},
+    "setupChoice": {"value": "Start with a minimal custom setup", "source": "owner"}
+  },
+  "customStack": {"value": "Node.js JavaScript API (ESM, node --test)", "source": "owner"},
+  "openQuestions": [
+    "Choose a host before launch. Company setup names AWS, but no JavaScript API golden path exists yet, so the AWS container infra draft was not generated.",
+    "Add an HTTP layer around src/requests.js before any deploy. The repo has no entry point.",
+    "Storage is DynamoDB in company setup. The module uses an in-memory Map. Decide persistence through /decide before infrastructure.",
+    "Language clash: company language TypeScript and repo JavaScript versus the only API golden path, python-fastapi."
+  ],
+  "unusedFields": []
+}

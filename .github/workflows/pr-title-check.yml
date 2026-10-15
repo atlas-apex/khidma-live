@@ -1,0 +1,124 @@
+# PR Title Check — Ticket Enforcement
+# Copy this to .github/workflows/pr-title-check.yml in your project.
+#
+# Purpose: ensure all PRs have a ticket ID in the title.
+# Default: GitHub Issues (#58). Also supports any uppercase tracker prefix
+# (e.g. ABC-123, PROJ-456) for teams using Linear, Jira, or similar.
+
+name: PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  check-title:
+    name: Verify Ticket ID
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR title for ticket ID
+        id: check
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+
+            // Pattern matches:
+            //   Project tracker: ABC-123, ENG-456, PROJ-789 (2-10 char uppercase prefix + dash + digits)
+            //   GitHub Issues:   #58, #123
+            //
+            // Note: pattern intentionally aligned with the local hooks
+            // (.claude/hooks/validate-branch-name.sh and validate-pr-create.sh)
+            // so anything that passes the hooks also passes this CI check.
+            const trackerPattern = /[A-Z]{2,10}-\d+/;
+            const githubPattern = /#\d+/;
+
+            const trackerMatch = title.match(trackerPattern);
+            const githubMatch = title.match(githubPattern);
+
+            if (!trackerMatch && !githubMatch) {
+              core.setFailed(
+                `❌ PR title must include a ticket ID\n\n` +
+                `Current title: "${title}"\n\n` +
+                `Valid formats:\n` +
+                `  Tracker: ABC-123, ENG-456\n` +
+                `  GitHub:  #58\n\n` +
+                `Example: "feat(ABC-123): description" or "feat(#58): description"`
+              );
+              return;
+            }
+
+            const ticketId = trackerMatch ? trackerMatch[0] : githubMatch[0];
+            console.log(`✅ Found ticket ID: ${ticketId}`);
+            core.setOutput('ticket_id', ticketId);
+
+      - name: Add ticket label
+        if: success()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        with:
+          script: |
+            const ticketId = '${{ steps.check.outputs.ticket_id }}';
+
+            if (ticketId) {
+              const isGithubIssue = ticketId.startsWith('#');
+              const label = isGithubIssue ? 'github-issue' : 'tracked';
+
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  labels: [label, 'has-ticket']
+                });
+              } catch (e) {
+                // Labels might not exist — that's OK
+                console.log('Could not add labels:', e.message);
+              }
+            }
+
+      - name: Post comment on failure
+        if: failure()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+
+            const body = `## ❌ Missing Ticket ID
+
+            Your PR title must include a ticket ID (project tracker or GitHub Issue).
+
+            **Current title**: \`${title}\`
+
+            ### Valid formats
+            - \`feat(ABC-123): add new feature\` (project tracker)
+            - \`fix(#58): correct encryption claim\` (GitHub Issue)
+            - \`ABC-123: Add new feature\`
+
+            ### Why we require tickets
+            - Every change must be tracked
+            - Enables traceability and audit
+            - Links code to business requirements
+            - No exceptions — even for "small" changes`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Missing Ticket ID')
+            );
+
+            if (!botComment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
