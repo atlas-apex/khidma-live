@@ -33,8 +33,8 @@ npm test
 ## Project layout
 
 - `src/requests.js` — the request lifecycle: `submitRequest`, `startReview`, `decide`, `getRequest`, `getRequestByReference`, `listRequestsByCitizen`, `resetStore`
-- `test/requests.test.js` — 27 tests, one `test()` per rule, `beforeEach(resetStore)`
-- `tickets/` — work items as markdown (`KH-NNN.md`). KH-101, KH-103, KH-106 are done. KH-107 and KH-109 are open.
+- `test/requests.test.js` — one `test()` per rule, `beforeEach(resetStore)` (27 tests at the 2026-10-15 handover)
+- `tickets/` — work items as markdown (`KH-NNN.md`). KH-101, KH-103, KH-106 are done. KH-107 and KH-109 were open at the 2026-10-15 handover. Check GitHub Issues for current status.
 - `.squad/` — squad-kit plans and story intakes for the three implemented tickets
 - `.claude/commands/` — squad-kit slash commands (`/squad-plan`, `/squad-new-story`)
 
@@ -42,12 +42,14 @@ npm test
 
 - Statuses are `SUBMITTED` → `UNDER_REVIEW` → `APPROVED` | `REJECTED`. Use the frozen `Status` object, never string literals.
 - Every request gets a reference number `KH-YYYY-NNNNNN`. The sequence restarts each UTC year.
-- Business-rule errors carry a `code` property (`DUPLICATE_REQUEST`, `REVIEWER_AT_CAPACITY`). Add a code when you add a new rule error.
-- `submitRequest` accepts an injected `now` for deterministic tests. Prefer injected time over `new Date()` in new code.
+- Two business-rule errors carry a `code` property: `DUPLICATE_REQUEST` and `REVIEWER_AT_CAPACITY`. Plain validation and state errors carry none. Add a code when you add a new business-rule error.
+- `submitRequest` accepts an injected `now`. `transition()` still calls `new Date()`, so history timestamps are not injectable today. Prefer injected time in new code.
 - Tickets ask for one test per rule and no new dependencies. Keep both.
 - No TypeScript, no lint config. Write plain ES modules that match the existing style.
 
 ## Gotchas
+
+The first four items were true at the 2026-10-15 handover. Issues #10, #11, and #12 track the fixes. Delete each item once its issue closes.
 
 - No lint baseline: style is not checked anywhere. Match the existing file by hand.
 - No type checking: signatures are only documented by the tests. Read `test/requests.test.js` before changing an export.
