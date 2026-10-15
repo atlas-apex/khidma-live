@@ -15,14 +15,12 @@ Khidma is a fictional government e-services portal. This repo holds one slice: a
 
 ## Commands
 
-Only `test` is defined in `package.json`. There is no build or lint script.
+Only `test` is defined in `package.json`. There is no build, lint, or run script. The module has no HTTP entry point in this repo.
 
 ```bash
 # install — nothing to install, the project has zero dependencies
 # test (verified 2026-10-15: 27 pass, 0 fail)
 npm test
-# run the demo UI on http://localhost:3000 (unverified in this handover)
-node .demo/ui/server.js
 ```
 
 ## Project layout
@@ -30,7 +28,6 @@ node .demo/ui/server.js
 - `src/requests.js` — the whole domain: `submitRequest`, `startReview`, `decide`, `getRequest`, `getRequestByReference`, `listRequestsByCitizen`, `resetStore`
 - `test/requests.test.js` — 27 behaviour tests
 - `tickets/KH-*.md` — story tickets as Markdown. KH-101, KH-103, KH-106 are implemented. KH-107 and KH-109 are not implemented on `main`.
-- `.demo/` — demo UI server and run-sheet scripts. Not production code.
 - `.squad/` and `.claude/commands/` — squad-kit planning artefacts from the original setup
 
 ## Conventions
@@ -45,6 +42,6 @@ node .demo/ui/server.js
 
 - No lint baseline and no type checking. Style drift is not caught automatically.
 - No coverage threshold. A green run does not prove new code is tested.
-- All state is in process memory. Restarting the demo server clears every request.
+- All state is in process memory. Restarting the process clears every request.
 - The reviewer limit `MAX_ACTIVE_REVIEWS` is 5 and is exported. Tests depend on that value.
-- Do not expose `.demo/ui/server.js` outside localhost. It has no auth or input validation.
+- There is no authentication, authorisation, or input validation beyond presence checks. Any HTTP layer added later must supply all three.
