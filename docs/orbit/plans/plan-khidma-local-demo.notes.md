@@ -28,7 +28,8 @@ Recorded from the Naqid challenge of revision 1.
 - Uncoded module errors (not found, validation, state) map to one 4xx status by a stated rule in the server. Coded business-rule errors keep their code. An unexpected error returns 500.
 - The screens are a disposable demo shell. They are not the seed of the React production UI from the company stack.
 - Route handlers are written as pure functions, request in and status plus body out, so they can map to Lambda handlers later. This is a preference, not a criterion.
-- Delivery is sliced vertically. The citizen path (routes plus citizen screen) ships before the reviewer path, so no merged state is undemoable.
+- Delivery order is o1 citizen routes, then o2 citizen screen, then o1 reviewer routes, then o2 reviewer screen. After the first slice the only demo is curl. The operator accepted that interim state on 2026-10-16.
+- The ac1-6 exports (`listRequestsByStatus`, `countActiveReviews`) ship in their own KH ticket and PR, merged before the first slice. The slice itself changes no module code.
 
 ## Proof
 
@@ -47,11 +48,12 @@ Recorded from the Naqid challenge of revision 1.
 
 ## Order
 
-o1 first, because the screens call its routes. Then o2. Within the build, the citizen path ships before the reviewer path.
+o1 first, because the screens call its routes. Then o2. Within the build: the ac1-6 exports as a KH ticket, then the o1 citizen routes, then the o2 citizen screen, then the o1 reviewer routes, then the o2 reviewer screen.
 
 ## Challenges
 
 - 2026-10-16, revision 1: Naqid verdict proceed-with-changes. Two serious findings, both accepted: the reviewer-screen data gap against C3 (now ac1-6) and the open bind and identity assumptions after dropping C4 (now ac1-7). The remaining findings are recorded under Assumptions.
+- 2026-10-16, slice-khidma-o1-citizen-path: Naqid verdict proceed-with-changes. Accepted: the scope arrays were re-serialized after a comma-split defect, get by id was placed in scope, ac1-2 and ac1-7 are labelled partial, one socket test on port 0 was added, the error rule became a table with a constructor-based fallback, and the ac1-6 exports moved to their own KH ticket. The operator accepted a curl-only interim state after the first slice.
 
 ## Revision history
 

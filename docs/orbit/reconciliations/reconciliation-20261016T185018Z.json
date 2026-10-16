@@ -1,0 +1,119 @@
+{
+  "specVersion": "0.1",
+  "id": "reconciliation-khidma-local-demo-r1-baseline",
+  "planId": "plan-khidma-local-demo",
+  "planRevision": 1,
+  "projectSnapshotId": "snapshot-khidma-live-20261016T185006Z",
+  "reconciledAt": "2026-10-16T18:50:18.987Z",
+  "observations": [
+    "Observed atlas-apex/khidma-live at 0e6eda4841684bd29736848dd1a8907238daae99.",
+    "Code tree at 0e6eda4 is identical to main at 2c8bb76 plus the two Plan record files.",
+    "Baseline reconciliation for revision 1. No criterion is achieved yet."
+  ],
+  "criterionAssessments": [
+    {
+      "criterionId": "ac1-1",
+      "status": "not-verified",
+      "evidence": [
+        "package.json scripts are test, lint, typecheck. There is no start script.",
+        "The repo has no server entry point. src/ holds only requests.js."
+      ],
+      "explanation": "Missing: No command starts a server. Next: Add src/server.js and an npm start script, and name both in the README."
+    },
+    {
+      "criterionId": "ac1-2",
+      "status": "not-verified",
+      "evidence": [
+        "No file in the repo imports node:http or creates a listener.",
+        "src/requests.js exports submitRequest, withdrawRequest, startReview, returnForInfo, resubmitRequest, decide, getRequest, getRequestByReference, listRequestsByCitizen."
+      ],
+      "explanation": "Missing: No JSON routes exist. Next: Map each exported lifecycle function to one route in src/server.js."
+    },
+    {
+      "criterionId": "ac1-3",
+      "status": "not-verified",
+      "evidence": [
+        "Four errors carry a code: DUPLICATE_REQUEST, REVIEWER_AT_CAPACITY, NOT_REQUEST_OWNER, NOT_ASSIGNED_REVIEWER.",
+        "Not-found, validation, and state errors are plain Error objects with no code."
+      ],
+      "explanation": "Missing: No HTTP error mapping exists. Next: Write one rule that maps coded errors to 409 or 403, uncoded module errors to 400 or 404, and anything else to 500."
+    },
+    {
+      "criterionId": "ac1-4",
+      "status": "not-verified",
+      "evidence": [
+        "No server module exists, so there is nothing to inspect for rules yet."
+      ],
+      "explanation": "Missing: The server is not written. Next: Keep route handlers as pure adapters over src/requests.js and confirm in code review."
+    },
+    {
+      "criterionId": "ac1-5",
+      "status": "not-verified",
+      "evidence": [
+        "npm test at 2c8bb76 reports 41 tests, 41 pass, 0 fail.",
+        "No route tests exist."
+      ],
+      "explanation": "Missing: Route handler tests do not exist. Next: Add test/server.test.js that drives the handlers in-process."
+    },
+    {
+      "criterionId": "ac1-6",
+      "status": "not-verified",
+      "evidence": [
+        "countActiveReviews in src/requests.js is a private function.",
+        "listRequestsByCitizen is the only list export. No export lists by status or counts per reviewer."
+      ],
+      "explanation": "Missing: The reviewer queue and active-count exports do not exist. Next: Add listRequestsByStatus and countActiveReviews exports with one test each."
+    },
+    {
+      "criterionId": "ac1-7",
+      "status": "not-verified",
+      "evidence": [
+        "No server exists, so no bind address is set.",
+        "No screen exists, so no banner is shown."
+      ],
+      "explanation": "Missing: No loopback bind and no demo banner. Next: Call listen with host 127.0.0.1 and render the banner in the shared screen layout."
+    },
+    {
+      "criterionId": "ac2-1",
+      "status": "not-verified",
+      "evidence": [
+        "The repo has no HTML, CSS, or browser JavaScript file."
+      ],
+      "explanation": "Missing: No citizen screen exists. Next: Add public/citizen.html that calls the submit, withdraw, resubmit, and list-by-citizen routes."
+    },
+    {
+      "criterionId": "ac2-2",
+      "status": "not-verified",
+      "evidence": [
+        "The repo has no HTML, CSS, or browser JavaScript file.",
+        "The reviewer queue and active count depend on ac1-6."
+      ],
+      "explanation": "Missing: No reviewer screen exists. Next: Add public/reviewer.html after ac1-6 lands, calling the queue, start-review, return, and decide routes."
+    },
+    {
+      "criterionId": "ac2-3",
+      "status": "not-verified",
+      "evidence": [
+        "Status is a frozen object with six values: SUBMITTED, UNDER_REVIEW, NEEDS_INFO, APPROVED, REJECTED, WITHDRAWN.",
+        "History entries carry status, at, and an optional note."
+      ],
+      "explanation": "Missing: No screen renders status markers or history. Next: Give each of the six statuses a marker in the shared stylesheet and list history per request."
+    },
+    {
+      "criterionId": "ac2-4",
+      "status": "not-verified",
+      "evidence": [
+        "No screen exists to show errors."
+      ],
+      "explanation": "Missing: No error display. Next: Show every non-2xx response body message in a visible error region on both screens."
+    },
+    {
+      "criterionId": "ac2-5",
+      "status": "not-verified",
+      "evidence": [
+        "No screen exists to measure."
+      ],
+      "explanation": "Missing: No layout exists. Next: Share one stylesheet between the two screens and check both at 400px width."
+    }
+  ]
+}
