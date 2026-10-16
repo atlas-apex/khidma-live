@@ -3,8 +3,8 @@
 import { randomUUID } from 'node:crypto';
 
 /**
- * @typedef {'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN'} StatusValue
- * @typedef {{ status: StatusValue, at: string }} HistoryEntry
+ * @typedef {'SUBMITTED' | 'UNDER_REVIEW' | 'NEEDS_INFO' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN'} StatusValue
+ * @typedef {{ status: StatusValue, at: string, note?: string }} HistoryEntry
  * @typedef {{
  *   id: string,
  *   referenceNumber: string,
@@ -20,6 +20,7 @@ import { randomUUID } from 'node:crypto';
 export const Status = Object.freeze({
   SUBMITTED: 'SUBMITTED',
   UNDER_REVIEW: 'UNDER_REVIEW',
+  NEEDS_INFO: 'NEEDS_INFO',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   WITHDRAWN: 'WITHDRAWN',
@@ -50,7 +51,7 @@ function nextReferenceNumber(now) {
 }
 
 /** @type {Set<StatusValue>} */
-const OPEN_STATUSES = new Set([Status.SUBMITTED, Status.UNDER_REVIEW]);
+const OPEN_STATUSES = new Set([Status.SUBMITTED, Status.UNDER_REVIEW, Status.NEEDS_INFO]);
 
 /**
  * @param {string} citizenId
@@ -128,11 +129,69 @@ export function listRequestsByCitizen(citizenId) {
  * @param {RequestRecord} request
  * @param {StatusValue} to
  * @param {Date} [now]
+ * @param {string} [note] saved on the history entry when given
  */
-function transition(request, to, now = new Date()) {
+function transition(request, to, now = new Date(), note) {
   request.status = to;
-  request.history.push({ status: to, at: now.toISOString() });
+  /** @type {HistoryEntry} */
+  const entry = { status: to, at: now.toISOString() };
+  if (note !== undefined) entry.note = note;
+  request.history.push(entry);
   return request;
+}
+
+/**
+ * The assigned reviewer sends a request back to the citizen for more
+ * information. NEEDS_INFO frees the reviewer's slot but still counts as open,
+ * so the citizen cannot submit a duplicate for the same service.
+ * @param {string} id
+ * @param {string} reviewerId
+ * @param {string} note
+ * @param {{ now?: Date }} [options]
+ */
+export function returnForInfo(id, reviewerId, note, { now = new Date() } = {}) {
+  if (!reviewerId) throw new Error('reviewerId is required');
+  if (typeof note !== 'string' || note.trim() === '') throw new Error('note is required');
+  const request = getRequest(id);
+  if (request.status !== Status.UNDER_REVIEW) {
+    throw new Error(`Cannot return a request in ${request.status}`);
+  }
+  if (request.reviewerId !== reviewerId) {
+    /** @type {CodedError} */
+    const error = new Error(
+      `Reviewer ${reviewerId} is not assigned to request ${request.referenceNumber}`,
+    );
+    error.code = 'NOT_ASSIGNED_REVIEWER';
+    error.reviewerId = reviewerId;
+    throw error;
+  }
+  return transition(request, Status.NEEDS_INFO, now, note);
+}
+
+/**
+ * The owning citizen resubmits a request that was returned for more
+ * information. The request goes back to SUBMITTED for any reviewer to pick up.
+ * @param {string} id
+ * @param {string} citizenId
+ * @param {{ now?: Date }} [options]
+ */
+export function resubmitRequest(id, citizenId, { now = new Date() } = {}) {
+  if (!citizenId) throw new Error('citizenId is required');
+  const request = getRequest(id);
+  if (request.citizenId !== citizenId) {
+    /** @type {CodedError} */
+    const error = new Error(
+      `Citizen ${citizenId} does not own request ${request.referenceNumber}`,
+    );
+    error.code = 'NOT_REQUEST_OWNER';
+    error.referenceNumber = request.referenceNumber;
+    throw error;
+  }
+  if (request.status !== Status.NEEDS_INFO) {
+    throw new Error(`Cannot resubmit a request in ${request.status}`);
+  }
+  delete request.reviewerId;
+  return transition(request, Status.SUBMITTED, now);
 }
 
 /**

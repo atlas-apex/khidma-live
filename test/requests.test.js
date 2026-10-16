@@ -1,6 +1,6 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { Status, resetStore, submitRequest, startReview, decide, withdrawRequest, getRequest, getRequestByReference, listRequestsByCitizen, MAX_ACTIVE_REVIEWS } from '../src/requests.js';
+import { Status, resetStore, submitRequest, startReview, decide, withdrawRequest, returnForInfo, resubmitRequest, getRequest, getRequestByReference, listRequestsByCitizen, MAX_ACTIVE_REVIEWS } from '../src/requests.js';
 
 beforeEach(() => resetStore());
 
@@ -241,4 +241,90 @@ test('a WITHDRAWN request is not open, so the citizen can submit the same servic
   assert.equal(again.referenceNumber, 'KH-2026-000002');
   assert.equal(getRequest(r.id).status, Status.WITHDRAWN);
   assert.equal(listRequestsByCitizen('c1').length, 2);
+});
+
+test('the assigned reviewer can return an UNDER_REVIEW request with a note', () => {
+  const r = submitRequest(c);
+  startReview(r.id, reviewer);
+  const returnedAt = new Date('2026-03-03T08:00:00Z');
+  returnForInfo(r.id, reviewer, 'ID scan is blurry', { now: returnedAt });
+  assert.equal(getRequest(r.id).status, Status.NEEDS_INFO);
+  assert.deepEqual(getRequest(r.id).history.at(-1), {
+    status: Status.NEEDS_INFO,
+    at: returnedAt.toISOString(),
+    note: 'ID scan is blurry',
+  });
+});
+
+test('returning a request requires a note', () => {
+  const r = submitRequest(c);
+  startReview(r.id, reviewer);
+  assert.throws(() => returnForInfo(r.id, reviewer), /note is required/);
+  assert.throws(() => returnForInfo(r.id, reviewer, '   '), /note is required/);
+  assert.equal(getRequest(r.id).status, Status.UNDER_REVIEW);
+});
+
+test('only the assigned reviewer can return the request', () => {
+  const r = submitRequest(c);
+  startReview(r.id, reviewer);
+  assert.throws(
+    () => returnForInfo(r.id, 'reviewer-2', 'missing document'),
+    (e) => e.code === 'NOT_ASSIGNED_REVIEWER' && e.reviewerId === 'reviewer-2' && e.message.includes(r.referenceNumber),
+  );
+  assert.throws(() => returnForInfo(r.id, undefined, 'missing document'), /reviewerId is required/);
+  assert.equal(getRequest(r.id).status, Status.UNDER_REVIEW);
+  assert.equal(getRequest(r.id).reviewerId, reviewer);
+});
+
+test('a request can be returned only while UNDER_REVIEW', () => {
+  const r = submitRequest(c);
+  assert.throws(() => returnForInfo(r.id, reviewer, 'missing document'), /Cannot return a request in SUBMITTED/);
+  assert.equal(getRequest(r.id).status, Status.SUBMITTED);
+});
+
+test('returning a request frees the reviewer slot', () => {
+  const held = startMany(MAX_ACTIVE_REVIEWS, reviewer);
+  returnForInfo(held[0].id, reviewer, 'missing document');
+  const r = submitRequest(fresh());
+  startReview(r.id, reviewer);
+  assert.equal(getRequest(r.id).status, Status.UNDER_REVIEW);
+});
+
+test('only the owning citizen can resubmit, and it goes back to SUBMITTED for any reviewer', () => {
+  const r = submitRequest(c);
+  startReview(r.id, reviewer);
+  returnForInfo(r.id, reviewer, 'missing document');
+  assert.throws(
+    () => resubmitRequest(r.id, 'c2'),
+    (e) => e.code === 'NOT_REQUEST_OWNER' && e.referenceNumber === r.referenceNumber,
+  );
+  assert.throws(() => resubmitRequest(r.id), /citizenId is required/);
+  assert.equal(getRequest(r.id).status, Status.NEEDS_INFO);
+
+  const resubmittedAt = new Date('2026-03-04T08:00:00Z');
+  resubmitRequest(r.id, 'c1', { now: resubmittedAt });
+  assert.equal(getRequest(r.id).status, Status.SUBMITTED);
+  assert.equal(getRequest(r.id).reviewerId, undefined);
+  assert.deepEqual(getRequest(r.id).history.at(-1), { status: Status.SUBMITTED, at: resubmittedAt.toISOString() });
+  startReview(r.id, 'reviewer-2');
+  assert.equal(getRequest(r.id).reviewerId, 'reviewer-2');
+});
+
+test('a request can be resubmitted only from NEEDS_INFO', () => {
+  const r = submitRequest(c);
+  assert.throws(() => resubmitRequest(r.id, 'c1'), /Cannot resubmit a request in SUBMITTED/);
+  startReview(r.id, reviewer);
+  assert.throws(() => resubmitRequest(r.id, 'c1'), /Cannot resubmit a request in UNDER_REVIEW/);
+  assert.equal(getRequest(r.id).status, Status.UNDER_REVIEW);
+});
+
+test('a NEEDS_INFO request still counts as open for the duplicate guard', () => {
+  const r = submitRequest(c);
+  startReview(r.id, reviewer);
+  returnForInfo(r.id, reviewer, 'missing document');
+  assert.throws(
+    () => submitRequest(c),
+    (e) => e.code === 'DUPLICATE_REQUEST' && e.referenceNumber === r.referenceNumber,
+  );
+  assert.equal(listRequestsByCitizen('c1').length, 1);
 });
