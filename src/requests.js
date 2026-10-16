@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 
 /**
- * @typedef {'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'} StatusValue
+ * @typedef {'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN'} StatusValue
  * @typedef {{ status: StatusValue, at: string }} HistoryEntry
  * @typedef {{
  *   id: string,
@@ -22,6 +22,7 @@ export const Status = Object.freeze({
   UNDER_REVIEW: 'UNDER_REVIEW',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
 });
 
 /** @type {Map<string, RequestRecord>} */
@@ -126,11 +127,38 @@ export function listRequestsByCitizen(citizenId) {
 /**
  * @param {RequestRecord} request
  * @param {StatusValue} to
+ * @param {Date} [now]
  */
-function transition(request, to) {
+function transition(request, to, now = new Date()) {
   request.status = to;
-  request.history.push({ status: to, at: new Date().toISOString() });
+  request.history.push({ status: to, at: now.toISOString() });
   return request;
+}
+
+/**
+ * A citizen withdraws their own request before staff start the review.
+ * WITHDRAWN is final: the request can no longer be reviewed or decided, and it
+ * no longer counts as open for the duplicate guard.
+ * @param {string} id
+ * @param {string} citizenId
+ * @param {{ now?: Date }} [options]
+ */
+export function withdrawRequest(id, citizenId, { now = new Date() } = {}) {
+  if (!citizenId) throw new Error('citizenId is required');
+  const request = getRequest(id);
+  if (request.citizenId !== citizenId) {
+    /** @type {CodedError} */
+    const error = new Error(
+      `Citizen ${citizenId} does not own request ${request.referenceNumber}`,
+    );
+    error.code = 'NOT_REQUEST_OWNER';
+    error.referenceNumber = request.referenceNumber;
+    throw error;
+  }
+  if (request.status !== Status.SUBMITTED) {
+    throw new Error(`Cannot withdraw a request in ${request.status}`);
+  }
+  return transition(request, Status.WITHDRAWN, now);
 }
 
 /**

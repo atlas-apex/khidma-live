@@ -32,7 +32,7 @@ npm test
 
 ## Project layout
 
-- `src/requests.js` — the request lifecycle: `submitRequest`, `startReview`, `decide`, `getRequest`, `getRequestByReference`, `listRequestsByCitizen`, `resetStore`
+- `src/requests.js` — the request lifecycle: `submitRequest`, `withdrawRequest`, `startReview`, `decide`, `getRequest`, `getRequestByReference`, `listRequestsByCitizen`, `resetStore`
 - `test/requests.test.js` — one `test()` per rule, `beforeEach(resetStore)` (27 tests at the 2026-10-15 handover)
 - `tickets/` — work items as markdown (`KH-NNN.md`). KH-101, KH-103, KH-106 are done. KH-107 and KH-109 were open at the 2026-10-15 handover. Check GitHub Issues for current status.
 - `.squad/` — squad-kit plans and story intakes for the three implemented tickets
@@ -40,10 +40,10 @@ npm test
 
 ## Conventions
 
-- Statuses are `SUBMITTED` → `UNDER_REVIEW` → `APPROVED` | `REJECTED`. Use the frozen `Status` object, never string literals.
+- Statuses are `SUBMITTED` → `UNDER_REVIEW` → `APPROVED` | `REJECTED`, or `SUBMITTED` → `WITHDRAWN` (citizen withdrew before review). Use the frozen `Status` object, never string literals.
 - Every request gets a reference number `KH-YYYY-NNNNNN`. The sequence restarts each UTC year.
-- Two business-rule errors carry a `code` property: `DUPLICATE_REQUEST` and `REVIEWER_AT_CAPACITY`. Plain validation and state errors carry none. Add a code when you add a new business-rule error.
-- `submitRequest` accepts an injected `now`. `transition()` still calls `new Date()`, so history timestamps are not injectable today. Prefer injected time in new code.
+- Three business-rule errors carry a `code` property: `DUPLICATE_REQUEST`, `REVIEWER_AT_CAPACITY`, and `NOT_REQUEST_OWNER`. Plain validation and state errors carry none. Add a code when you add a new business-rule error.
+- `submitRequest` and `withdrawRequest` accept an injected `now`. `transition()` takes an optional `now` too, but `startReview` and `decide` do not pass one yet. Prefer injected time in new code.
 - Tickets ask for one test per rule and no new dependencies. Keep both.
 - No TypeScript, no lint config. Write plain ES modules that match the existing style.
 
