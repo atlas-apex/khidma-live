@@ -1,5 +1,21 @@
+// @ts-check
 // Khidma — request lifecycle (in-memory demo store)
 import { randomUUID } from 'node:crypto';
+
+/**
+ * @typedef {'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'} StatusValue
+ * @typedef {{ status: StatusValue, at: string }} HistoryEntry
+ * @typedef {{
+ *   id: string,
+ *   referenceNumber: string,
+ *   citizenId: string,
+ *   serviceId: string,
+ *   status: StatusValue,
+ *   history: HistoryEntry[],
+ *   reviewerId?: string,
+ * }} RequestRecord
+ * @typedef {Error & { code?: string, referenceNumber?: string, reviewerId?: string }} CodedError
+ */
 
 export const Status = Object.freeze({
   SUBMITTED: 'SUBMITTED',
@@ -8,8 +24,11 @@ export const Status = Object.freeze({
   REJECTED: 'REJECTED',
 });
 
+/** @type {Map<string, RequestRecord>} */
 const requests = new Map();
+/** @type {Map<number, number>} */
 const yearCounters = new Map(); // year -> last sequence number used
+/** @type {Map<string, string>} */
 const byReference = new Map(); // referenceNumber -> request id
 
 export function resetStore() {
@@ -20,6 +39,7 @@ export function resetStore() {
 
 const MAX_SEQUENCE = 999999;
 
+/** @param {Date} now */
 function nextReferenceNumber(now) {
   const year = now.getUTCFullYear();
   const next = (yearCounters.get(year) ?? 0) + 1;
@@ -28,8 +48,13 @@ function nextReferenceNumber(now) {
   return `KH-${year}-${String(next).padStart(6, '0')}`;
 }
 
+/** @type {Set<StatusValue>} */
 const OPEN_STATUSES = new Set([Status.SUBMITTED, Status.UNDER_REVIEW]);
 
+/**
+ * @param {string} citizenId
+ * @param {string} serviceId
+ */
 function findOpenRequest(citizenId, serviceId) {
   return listRequestsByCitizen(citizenId).find(
     (r) => r.serviceId === serviceId && OPEN_STATUSES.has(r.status),
@@ -38,6 +63,7 @@ function findOpenRequest(citizenId, serviceId) {
 
 export const MAX_ACTIVE_REVIEWS = 5;
 
+/** @param {string} reviewerId */
 function countActiveReviews(reviewerId) {
   let count = 0;
   for (const r of requests.values()) {
@@ -46,11 +72,17 @@ function countActiveReviews(reviewerId) {
   return count;
 }
 
+/**
+ * @param {{ citizenId: string, serviceId: string }} input
+ * @param {{ now?: Date }} [options]
+ * @returns {RequestRecord}
+ */
 export function submitRequest({ citizenId, serviceId }, { now = new Date() } = {}) {
   if (!citizenId) throw new Error('citizenId is required');
   if (!serviceId) throw new Error('serviceId is required');
   const open = findOpenRequest(citizenId, serviceId);
   if (open) {
+    /** @type {CodedError} */
     const error = new Error(
       `Citizen ${citizenId} already has an open request ${open.referenceNumber} for ${serviceId}`,
     );
@@ -71,12 +103,14 @@ export function submitRequest({ citizenId, serviceId }, { now = new Date() } = {
   return request;
 }
 
+/** @param {string} id */
 export function getRequest(id) {
   const request = requests.get(id);
   if (!request) throw new Error(`Request ${id} not found`);
   return request;
 }
 
+/** @param {string} referenceNumber */
 export function getRequestByReference(referenceNumber) {
   const key = String(referenceNumber ?? '').trim().toUpperCase();
   const id = byReference.get(key);
@@ -84,16 +118,25 @@ export function getRequestByReference(referenceNumber) {
   return getRequest(id);
 }
 
+/** @param {string} citizenId */
 export function listRequestsByCitizen(citizenId) {
   return [...requests.values()].filter((r) => r.citizenId === citizenId);
 }
 
+/**
+ * @param {RequestRecord} request
+ * @param {StatusValue} to
+ */
 function transition(request, to) {
   request.status = to;
   request.history.push({ status: to, at: new Date().toISOString() });
   return request;
 }
 
+/**
+ * @param {string} id
+ * @param {string} reviewerId
+ */
 export function startReview(id, reviewerId) {
   if (!reviewerId) throw new Error('reviewerId is required');
   const request = getRequest(id);
@@ -101,6 +144,7 @@ export function startReview(id, reviewerId) {
     throw new Error(`Cannot start review from ${request.status}`);
   }
   if (countActiveReviews(reviewerId) >= MAX_ACTIVE_REVIEWS) {
+    /** @type {CodedError} */
     const error = new Error(
       `Reviewer ${reviewerId} already has ${MAX_ACTIVE_REVIEWS} requests under review`,
     );
@@ -112,6 +156,10 @@ export function startReview(id, reviewerId) {
   return transition(request, Status.UNDER_REVIEW);
 }
 
+/**
+ * @param {string} id
+ * @param {string} decision
+ */
 export function decide(id, decision) {
   const request = getRequest(id);
   if (request.status !== Status.UNDER_REVIEW) {
