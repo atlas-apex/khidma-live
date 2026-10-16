@@ -1,6 +1,6 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { Status, resetStore, submitRequest, startReview, decide, getRequest, getRequestByReference, listRequestsByCitizen, MAX_ACTIVE_REVIEWS } from '../src/requests.js';
+import { Status, resetStore, submitRequest, startReview, decide, withdrawRequest, getRequest, getRequestByReference, listRequestsByCitizen, MAX_ACTIVE_REVIEWS } from '../src/requests.js';
 
 beforeEach(() => resetStore());
 
@@ -183,4 +183,62 @@ test('rejecting a request frees a slot', () => {
 test("one reviewer's load does not block another", () => {
   startMany(MAX_ACTIVE_REVIEWS, reviewer);
   assert.doesNotThrow(() => startReview(submitRequest(fresh()).id, 'reviewer-2'));
+});
+
+test('the owning citizen can withdraw a SUBMITTED request', () => {
+  const r = submitRequest(c);
+  const withdrawnAt = new Date('2026-03-02T09:00:00Z');
+  withdrawRequest(r.id, 'c1', { now: withdrawnAt });
+  assert.equal(getRequest(r.id).status, Status.WITHDRAWN);
+  assert.deepEqual(getRequest(r.id).history.at(-1), { status: Status.WITHDRAWN, at: withdrawnAt.toISOString() });
+});
+
+test('a different citizen cannot withdraw the request', () => {
+  const r = submitRequest(c);
+  assert.throws(
+    () => withdrawRequest(r.id, 'c2'),
+    (e) => e.code === 'NOT_REQUEST_OWNER' && e.referenceNumber === r.referenceNumber && e.message.includes(r.referenceNumber),
+  );
+  assert.equal(getRequest(r.id).status, Status.SUBMITTED);
+  assert.equal(getRequest(r.id).history.length, 1);
+});
+
+test('withdrawing without a citizen id throws', () => {
+  const r = submitRequest(c);
+  assert.throws(() => withdrawRequest(r.id), /citizenId is required/);
+  assert.equal(getRequest(r.id).status, Status.SUBMITTED);
+});
+
+test('a request can be withdrawn only while SUBMITTED', () => {
+  const underReview = submitRequest(fresh());
+  startReview(underReview.id, reviewer);
+  assert.throws(() => withdrawRequest(underReview.id, underReview.citizenId), /Cannot withdraw a request in UNDER_REVIEW/);
+  assert.equal(getRequest(underReview.id).status, Status.UNDER_REVIEW);
+
+  for (const decision of [Status.APPROVED, Status.REJECTED]) {
+    const r = submitRequest(fresh());
+    startReview(r.id, 'reviewer-2');
+    decide(r.id, decision);
+    assert.throws(() => withdrawRequest(r.id, r.citizenId), new RegExp(`Cannot withdraw a request in ${decision}`));
+    assert.equal(getRequest(r.id).status, decision);
+  }
+});
+
+test('a WITHDRAWN request cannot be reviewed or decided', () => {
+  const r = submitRequest(c);
+  withdrawRequest(r.id, 'c1');
+  assert.throws(() => startReview(r.id, reviewer), /Cannot start review from WITHDRAWN/);
+  assert.throws(() => decide(r.id, Status.APPROVED), /Cannot decide a request in WITHDRAWN/);
+  assert.equal(getRequest(r.id).status, Status.WITHDRAWN);
+  assert.equal(getRequest(r.id).reviewerId, undefined);
+});
+
+test('a WITHDRAWN request is not open, so the citizen can submit the same service again', () => {
+  const r = submitRequest(c, y2026);
+  withdrawRequest(r.id, 'c1');
+  const again = submitRequest(c, y2026);
+  assert.notEqual(again.id, r.id);
+  assert.equal(again.referenceNumber, 'KH-2026-000002');
+  assert.equal(getRequest(r.id).status, Status.WITHDRAWN);
+  assert.equal(listRequestsByCitizen('c1').length, 2);
 });
