@@ -1,0 +1,82 @@
+{
+  "specVersion": "0.1",
+  "id": "plan-khidma-local-demo",
+  "revision": 1,
+  "project": {
+    "id": "khidma-live"
+  },
+  "title": "Run Khidma locally and view its citizen and reviewer screens",
+  "intent": "Anyone can see what Khidma does by running one command and clicking through the citizen and reviewer screens. The screens drive the real lifecycle module, never a mock, so what they show is what the code does.",
+  "outcomes": [
+    {
+      "id": "o1-local-server",
+      "title": "One command starts a local HTTP server that exposes the request lifecycle over JSON routes, backed by the in-memory store."
+    },
+    {
+      "id": "o2-screens",
+      "title": "A citizen screen and a reviewer screen in the browser call those routes and show every status, with a basic consistent layout."
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac1-1",
+      "outcomeId": "o1-local-server",
+      "statement": "One documented npm command starts the server on a local port. No install step is needed beyond npm install."
+    },
+    {
+      "id": "ac1-2",
+      "outcomeId": "o1-local-server",
+      "statement": "JSON routes exist for submit, withdraw, start review, return for info, resubmit, decide, get by id, get by reference, and list by citizen."
+    },
+    {
+      "id": "ac1-3",
+      "outcomeId": "o1-local-server",
+      "statement": "Every business-rule error reaches the client with its code and message and an HTTP 4xx status. Validation and state errors return 4xx too."
+    },
+    {
+      "id": "ac1-4",
+      "outcomeId": "o1-local-server",
+      "statement": "The server adds no business rules. All lifecycle behaviour comes from src/requests.js."
+    },
+    {
+      "id": "ac1-5",
+      "outcomeId": "o1-local-server",
+      "statement": "The existing 41 tests still pass. Route handlers have their own tests."
+    },
+    {
+      "id": "ac1-6",
+      "outcomeId": "o1-local-server",
+      "statement": "src/requests.js exports a reviewer queue of SUBMITTED requests and an active-review count per reviewer. Each export has tests."
+    },
+    {
+      "id": "ac1-7",
+      "outcomeId": "o1-local-server",
+      "statement": "The server binds to loopback by default. Every screen shows a visible banner that says this is a fictional demo with no sign-in."
+    },
+    {
+      "id": "ac2-1",
+      "outcomeId": "o2-screens",
+      "statement": "A citizen screen lets a person submit, withdraw, and resubmit a request. It shows that person's requests with status and history."
+    },
+    {
+      "id": "ac2-2",
+      "outcomeId": "o2-screens",
+      "statement": "A reviewer screen lets a person start a review, return with a note, approve, or reject. It shows their active-review load against the limit."
+    },
+    {
+      "id": "ac2-3",
+      "outcomeId": "o2-screens",
+      "statement": "Every status has a distinct visual marker. The history, including return notes, is visible per request."
+    },
+    {
+      "id": "ac2-4",
+      "outcomeId": "o2-screens",
+      "statement": "Errors from the server appear on screen with their message. No failure is silent."
+    },
+    {
+      "id": "ac2-5",
+      "outcomeId": "o2-screens",
+      "statement": "The layout is consistent across both screens and usable at phone width."
+    }
+  ]
+}
