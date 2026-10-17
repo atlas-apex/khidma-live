@@ -4,6 +4,34 @@ import { Status, resetStore, submitRequest, startReview, decide, withdrawRequest
 
 beforeEach(() => resetStore());
 
+test('citizen list reads return independent records and history entries', () => {
+  const request = submitRequest({ citizenId: 'snapshot-citizen', serviceId: 'certificate' });
+  const first = listRequestsByCitizen('snapshot-citizen');
+  first[0].serviceId = 'changed';
+  first[0].history[0].at = 'changed';
+  first.length = 0;
+  const second = listRequestsByCitizen('snapshot-citizen');
+  assert.equal(second.length, 1);
+  assert.equal(second[0].serviceId, 'certificate');
+  assert.equal(second[0].history[0].at, getRequest(request.id).history[0].at);
+});
+
+test('citizen list includes new submissions and isolates citizens', () => {
+  submitRequest({ citizenId: 'snapshot-a', serviceId: 'certificate' });
+  assert.equal(listRequestsByCitizen('snapshot-a').length, 1);
+  submitRequest({ citizenId: 'snapshot-a', serviceId: 'permit' });
+  submitRequest({ citizenId: 'snapshot-b', serviceId: 'certificate' });
+  assert.equal(listRequestsByCitizen('snapshot-a').length, 2);
+  assert.equal(listRequestsByCitizen('snapshot-b').length, 1);
+});
+
+test('resetStore clears citizen list snapshots', () => {
+  submitRequest({ citizenId: 'snapshot-citizen', serviceId: 'certificate' });
+  assert.equal(listRequestsByCitizen('snapshot-citizen').length, 1);
+  resetStore();
+  assert.deepEqual(listRequestsByCitizen('snapshot-citizen'), []);
+});
+
 test('a new request starts as SUBMITTED', () => {
   const r = submitRequest({ citizenId: 'c1', serviceId: 'birth-certificate' });
   assert.equal(r.status, Status.SUBMITTED);
