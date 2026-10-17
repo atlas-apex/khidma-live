@@ -1,0 +1,124 @@
+{
+  "specVersion": "0.1",
+  "id": "reconciliation-khidma-local-demo-r1-after-slice-1",
+  "planId": "plan-khidma-local-demo",
+  "planRevision": 1,
+  "projectSnapshotId": "snapshot-khidma-live-20261017T180534Z",
+  "reconciledAt": "2026-10-17T18:05:34.813Z",
+  "observations": [
+    "Observed atlas-apex/khidma-live at ec7d132124e1a9fc137c3f8af983cdcd82e801c5.",
+    "Code tree at ec7d132 is main after the squash merge of PR #26 for slice-khidma-o1-citizen-path.",
+    "Slice PR: #26; main merge commit ec7d132.",
+    "npm test at ec7d132 reports 60 tests, 60 pass, 0 fail."
+  ],
+  "criterionAssessments": [
+    {
+      "criterionId": "ac1-1",
+      "status": "achieved",
+      "evidence": [
+        "package.json line 7 defines the start script as node src/server.js.",
+        "README.md section Run it locally names npm start and http://127.0.0.1:3000.",
+        "On 2026-10-17, npm ci then npm start on main printed the listening address 127.0.0.1:3000."
+      ],
+      "explanation": "npm start launches the server after npm install. The README names the command and the port."
+    },
+    {
+      "criterionId": "ac1-2",
+      "status": "partially-verified",
+      "evidence": [
+        "src/server.js lines 101-132 define six routes: submit, get by reference, get by id, withdraw, resubmit, list by citizen.",
+        "test/server.test.js has one success test per route for those six routes.",
+        "No route exists for start review, return for info, or decide."
+      ],
+      "explanation": "Missing: routes for start review, return for info, and decide. Next: ship the reviewer-routes slice on outcome o1."
+    },
+    {
+      "criterionId": "ac1-3",
+      "status": "partially-verified",
+      "evidence": [
+        "test/server.test.js lines 64-80 assert 409 DUPLICATE_REQUEST and 403 NOT_REQUEST_OWNER through the routes.",
+        "test/server.test.js line 81 asserts REVIEWER_AT_CAPACITY 409 and NOT_ASSIGNED_REVIEWER 403 through errorResponse only.",
+        "test/server.test.js lines 106-128 assert a validation 400, a state 409, and a not-found 404 through the routes."
+      ],
+      "explanation": "Missing: REVIEWER_AT_CAPACITY and NOT_ASSIGNED_REVIEWER do not reach a client through a route yet. Next: add route tests for both codes with the reviewer routes."
+    },
+    {
+      "criterionId": "ac1-4",
+      "status": "achieved",
+      "evidence": [
+        "src/server.js imports the lifecycle functions from src/requests.js at line 10.",
+        "src/server.js has no comparison of request status, owner, or review count.",
+        "The Rex review of PR #26 confirmed that C3 holds for the six citizen routes."
+      ],
+      "explanation": "The server adds no business rules. The reviewer-routes slice must keep this true."
+    },
+    {
+      "criterionId": "ac1-5",
+      "status": "achieved",
+      "evidence": [
+        "test/requests.test.js has 41 tests. test/server.test.js has 19 route-handler tests.",
+        "npm test at ec7d132 reports 60 tests, 60 pass, 0 fail."
+      ],
+      "explanation": "The 41 module tests pass and the route handlers have their own tests."
+    },
+    {
+      "criterionId": "ac1-6",
+      "status": "not-verified",
+      "evidence": [
+        "src/requests.js exports neither listRequestsByStatus nor countActiveReviews.",
+        "Issue #20 for these exports is open."
+      ],
+      "explanation": "Missing: the reviewer queue and active-count exports. Next: merge issue #20 before the reviewer-routes slice."
+    },
+    {
+      "criterionId": "ac1-7",
+      "status": "partially-verified",
+      "evidence": [
+        "src/server.js line 28 sets DEFAULT_HOST to 127.0.0.1. startServer passes it to listen at line 251.",
+        "test/server.test.js line 165 starts the server on port 0 and asserts the address 127.0.0.1.",
+        "No screen exists, so no banner is shown."
+      ],
+      "explanation": "Missing: the fictional-demo banner on every screen. Next: render the banner in the shared screen layout in outcome o2."
+    },
+    {
+      "criterionId": "ac2-1",
+      "status": "not-verified",
+      "evidence": [
+        "The repo has no public/ directory and no HTML, CSS, or browser JavaScript at ec7d132."
+      ],
+      "explanation": "Missing: no citizen screen exists. Next: add the citizen screen slice on outcome o2."
+    },
+    {
+      "criterionId": "ac2-2",
+      "status": "not-verified",
+      "evidence": [
+        "The repo has no public/ directory and no HTML, CSS, or browser JavaScript at ec7d132."
+      ],
+      "explanation": "Missing: no reviewer screen exists. Next: add the reviewer screen after issue #20 and the reviewer routes."
+    },
+    {
+      "criterionId": "ac2-3",
+      "status": "not-verified",
+      "evidence": [
+        "The repo has no public/ directory and no HTML, CSS, or browser JavaScript at ec7d132."
+      ],
+      "explanation": "Missing: no screen renders status markers or history. Next: give each status a marker in the shared stylesheet."
+    },
+    {
+      "criterionId": "ac2-4",
+      "status": "not-verified",
+      "evidence": [
+        "The repo has no public/ directory and no HTML, CSS, or browser JavaScript at ec7d132."
+      ],
+      "explanation": "Missing: no screen shows server errors. Next: show each non-2xx message in a visible error region."
+    },
+    {
+      "criterionId": "ac2-5",
+      "status": "not-verified",
+      "evidence": [
+        "The repo has no public/ directory and no HTML, CSS, or browser JavaScript at ec7d132."
+      ],
+      "explanation": "Missing: no layout exists. Next: share one stylesheet and check both screens at 400px width."
+    }
+  ]
+}

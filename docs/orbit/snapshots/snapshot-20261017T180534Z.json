@@ -1,0 +1,15 @@
+{
+  "specVersion": "0.1",
+  "id": "snapshot-khidma-live-20261017T180534Z",
+  "project": {
+    "id": "khidma-live"
+  },
+  "observedAt": "2026-10-17T18:05:34.683Z",
+  "repositories": [
+    {
+      "repositoryId": "atlas-apex/khidma-live",
+      "branch": "orbit/khidma-local-demo-slice-1-progress",
+      "commit": "ec7d132124e1a9fc137c3f8af983cdcd82e801c5"
+    }
+  ]
+}
