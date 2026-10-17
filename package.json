@@ -4,6 +4,7 @@
   "description": "Khidma — a fictional government e-services portal (demo starter)",
   "type": "module",
   "scripts": {
+    "start": "node src/server.js",
     "test": "node --test",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
