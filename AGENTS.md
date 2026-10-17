@@ -37,6 +37,8 @@ npm test
 - `tickets/` — work items as markdown (`KH-NNN.md`). KH-101, KH-103, KH-106 are done. KH-107 and KH-109 were open at the 2026-10-15 handover. Check GitHub Issues for current status.
 - `.squad/` — squad-kit plans and story intakes for the three implemented tickets
 - `.claude/commands/` — squad-kit slash commands (`/squad-plan`, `/squad-new-story`)
+- `docs/architecture/` — C4 context (L1) and container (L2) diagrams plus the data flow diagram. Start at `docs/architecture/README.md`.
+- `docs/agdr/` — Agent Decision Records (`AgDR-NNNN-<slug>.md`), one per material technical decision
 
 ## Conventions
 
