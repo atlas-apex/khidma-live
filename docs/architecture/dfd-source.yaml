@@ -1,0 +1,138 @@
+# DFD discovery report — khidma-live
+# Target: workspace/khidma-live
+# Generated: 2026-10-15 by /dfd (apexyard)
+#
+# discover.sh and classify.sh found no HTTP routes, SDK imports, schema files,
+# or env vars (the module has zero dependencies and no I/O). Every element
+# below was assembled by the agent from a read of src/requests.js and
+# confirmed by the operator during the /dfd interview on 2026-10-15.
+
+actors:
+  - id: citizen
+    kind: human
+    name: "Citizen"
+    evidence: "src/requests.js:49"
+    note: "Calls submitRequest and the lookup functions directly. No authentication exists in this codebase."
+  - id: reviewer
+    kind: human
+    name: "Staff reviewer"
+    evidence: "src/requests.js:97"
+    note: "Calls startReview and decide directly. Identity is the reviewerId string the caller supplies."
+  - id: gateway_planned
+    kind: external
+    name: "Public API gateway (planned)"
+    evidence: "operator interview 2026-10-15 — not present in code"
+    note: "Added by the operator. Marks where the Public Internet boundary will sit once an HTTP layer exists."
+
+processes:
+  - id: submit
+    name: "submitRequest"
+    evidence: "src/requests.js:49"
+    note: "Validates presence of citizenId and serviceId, enforces the duplicate guard, issues a reference number."
+  - id: start_review
+    name: "startReview"
+    evidence: "src/requests.js:97"
+    note: "Requires reviewerId, enforces MAX_ACTIVE_REVIEWS (5), transitions SUBMITTED to UNDER_REVIEW."
+  - id: decide
+    name: "decide"
+    evidence: "src/requests.js:115"
+    note: "Transitions UNDER_REVIEW to APPROVED or REJECTED. Does not check which reviewer calls it."
+  - id: lookup
+    name: "lookup (getRequest, getRequestByReference, listRequestsByCitizen)"
+    evidence: "src/requests.js:74"
+    note: "Reads by id, by reference number, or by citizenId. No caller check."
+
+stores:
+  - id: mem_store
+    kind: in-memory
+    name: "In-memory Map store"
+    evidence: "src/requests.js:11"
+    note: "Three Maps: requests, yearCounters, byReference. Per process. Not persisted. Cleared by resetStore."
+
+flows:
+  - source: citizen
+    target: submit
+    payload: "citizenId, serviceId, optional now"
+    crosses: caller_module
+  - source: citizen
+    target: lookup
+    payload: "request id, reference number, or citizenId"
+    crosses: caller_module
+  - source: reviewer
+    target: start_review
+    payload: "request id, reviewerId"
+    crosses: caller_module
+  - source: reviewer
+    target: decide
+    payload: "request id, decision"
+    crosses: caller_module
+  - source: submit
+    target: mem_store
+    payload: "request record (id, referenceNumber, citizenId, serviceId, status, history)"
+    crosses: none
+  - source: start_review
+    target: mem_store
+    payload: "reviewerId, status, history entry"
+    crosses: none
+  - source: decide
+    target: mem_store
+    payload: "status, history entry"
+    crosses: none
+  - source: lookup
+    target: mem_store
+    payload: "read of request records"
+    crosses: none
+  - source: gateway_planned
+    target: submit
+    payload: "planned: HTTP request body"
+    crosses: public_internet_planned
+
+boundaries:
+  - id: caller_module
+    name: "Caller ↔ Request lifecycle module"
+    kind: trust
+    status: present
+    note: "The module trusts citizenId and reviewerId exactly as the caller asserts them. No authentication or authorisation."
+  - id: public_internet_planned
+    name: "Public Internet ↔ Backend (planned)"
+    kind: network
+    status: planned
+    note: "Operator-added. No HTTP layer exists today. Recorded so the threat model can reason about the future surface."
+
+classifications:
+  - element: "request.citizenId"
+    label: pii
+    pathway: operator interview
+    evidence: "src/requests.js:64"
+    note: "Operator confirmed: a national ID or similar direct identifier of a natural person."
+  - element: "request.reviewerId"
+    label: internal
+    pathway: operator interview
+    evidence: "src/requests.js:111"
+    note: "Operator confirmed: a role or desk id, not a person."
+  - element: "request.referenceNumber"
+    label: internal
+    pathway: agent read
+    evidence: "src/requests.js:63"
+    note: "KH-YYYY-NNNNNN. Quoted by the citizen. Links to a citizenId inside the store, so treat as a PII lookup key."
+  - element: "request.serviceId"
+    label: internal
+    pathway: agent read
+    evidence: "src/requests.js:65"
+  - element: "request.history[].at"
+    label: internal
+    pathway: agent read
+    evidence: "src/requests.js:91"
+  - element: "error.message (duplicate guard)"
+    label: pii
+    pathway: agent read
+    evidence: "src/requests.js:55"
+    note: "The DUPLICATE_REQUEST error message embeds citizenId and referenceNumber. If surfaced to a client, it leaks PII."
+
+summary:
+  actors: 3
+  processes: 4
+  stores: 1
+  flows: 9
+  boundaries: 2
+  classifications: { pii: 2, pci: 0, secrets: 0, internal: 4 }
