@@ -1,0 +1,45 @@
+{
+  "specVersion": "0.1",
+  "id": "slice-khidma-o1-citizen-path",
+  "planId": "plan-khidma-local-demo",
+  "outcomeId": "o1-local-server",
+  "basedOn": {
+    "planRevision": 1,
+    "reconciliationId": "reconciliation-khidma-local-demo-r1-baseline",
+    "repositories": {
+      "atlas-apex/khidma-live": "0e6eda4841684bd29736848dd1a8907238daae99"
+    }
+  },
+  "objective": "npm start launches a local HTTP server on 127.0.0.1. It serves the citizen path of the lifecycle as JSON routes over the unchanged src/requests.js module.",
+  "why": "The baseline reconciliation finds every o1 criterion not-verified. package.json has no start script, nothing imports node:http, and no route or route test exists. The citizen path (submit, withdraw, resubmit, lookups, list) needs no new module behaviour. It is the smallest slice that proves the shell pattern, the error-mapping rule, and the loopback bind. The ac1-6 exports ship in their own KH ticket, merged first, so this slice changes no module code. Partial: ac1-2 (6 of 9 routes ship here), ac1-7 (the bind ships here, the banner belongs to o2).",
+  "contributesTo": [
+    "ac1-1",
+    "ac1-2",
+    "ac1-3",
+    "ac1-4",
+    "ac1-5",
+    "ac1-7"
+  ],
+  "scope": {
+    "include": [
+      "src/server.js on node:http. listen binds to 127.0.0.1 with a PORT default. startServer({ port }) is exported for tests.",
+      "npm start script and a README run section that names the command and the port.",
+      "JSON routes for submit, withdraw, resubmit, get by id, get by reference, and list by citizen.",
+      "One error-mapping table. DUPLICATE_REQUEST and REVIEWER_AT_CAPACITY 409. NOT_REQUEST_OWNER and NOT_ASSIGNED_REVIEWER 403. An unknown future code 409. Plain Error ending in not found 404. Plain Error starting with Cannot 409. Any other plain Error 400. Anything else 500.",
+      "Server-raised errors: malformed JSON 400, unknown route 404, wrong method 405. Error bodies carry code, message, and any referenceNumber or reviewerId from the error.",
+      "Handlers pass body fields straight through to the module and never pre-validate. Handlers are pure functions, request in and status plus body out.",
+      "test/server.test.js drives the handlers in-process with one test per route and one test per error family.",
+      "One socket test starts the server on port 0, asserts the bound address is 127.0.0.1, and makes one fetch round trip.",
+      "All existing tests still pass."
+    ],
+    "exclude": [
+      "Reviewer routes: start review, return for info, decide. They belong to the next slice.",
+      "The ac1-6 exports listRequestsByStatus and countActiveReviews. They ship in their own KH ticket, merged before this slice.",
+      "Any HTML, CSS, or browser JavaScript. That is o2.",
+      "The demo banner markup. That is o2, though the server is ready for it.",
+      "Persistence of any kind. See AgDR-0002.",
+      "Authentication or authorisation.",
+      "Changes to decide so that it checks the assigned reviewer. That is a separate KH ticket."
+    ]
+  }
+}
