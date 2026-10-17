@@ -32,11 +32,14 @@ const requests = new Map();
 const yearCounters = new Map(); // year -> last sequence number used
 /** @type {Map<string, string>} */
 const byReference = new Map(); // referenceNumber -> request id
+/** @type {Map<string, { size: number, records: RequestRecord[] }>} */
+const citizenSnapshots = new Map();
 
 export function resetStore() {
   requests.clear();
   yearCounters.clear();
   byReference.clear();
+  citizenSnapshots.clear();
 }
 
 const MAX_SEQUENCE = 999999;
@@ -122,7 +125,20 @@ export function getRequestByReference(referenceNumber) {
 
 /** @param {string} citizenId */
 export function listRequestsByCitizen(citizenId) {
-  return [...requests.values()].filter((r) => r.citizenId === citizenId);
+  let snapshot = citizenSnapshots.get(citizenId);
+  if (!snapshot || snapshot.size !== requests.size) {
+    snapshot = {
+      size: requests.size,
+      records: [...requests.values()]
+        .filter((r) => r.citizenId === citizenId)
+        .map((r) => ({ ...r, history: r.history.map((entry) => ({ ...entry })) })),
+    };
+    citizenSnapshots.set(citizenId, snapshot);
+  }
+  return snapshot.records.map((r) => ({
+    ...r,
+    history: r.history.map((entry) => ({ ...entry })),
+  }));
 }
 
 /**
