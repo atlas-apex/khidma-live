@@ -1,138 +1,87 @@
 # DFD discovery report — khidma-live
-# Target: workspace/khidma-live
-# Generated: 2026-10-15 by /dfd (apexyard)
+# Target: workspace/khidma-live, main at 6388ece
+# Generated: 2026-10-17 by /dfd (apexyard)
 #
-# discover.sh and classify.sh found no HTTP routes, SDK imports, schema files,
-# or env vars (the module has zero dependencies and no I/O). Every element
-# below was assembled by the agent from a read of src/requests.js and
-# confirmed by the operator during the /dfd interview on 2026-10-15.
+# discover.sh and classify.sh returned empty sections. They do not recognise a
+# plain node:http server. Every element below was assembled by the agent from a
+# read of src/server.js and src/requests.js and accepted by the operator on
+# 2026-10-17.
 
 actors:
   - id: citizen
     kind: human
-    name: "Citizen"
-    evidence: "src/requests.js:49"
-    note: "Calls submitRequest and the lookup functions directly. No authentication exists in this codebase."
+    name: "Citizen - HTTP client"
+    evidence: "src/server.js:101"
+    note: "Calls the six citizen routes. No authentication exists."
+  - id: local
+    kind: local-process
+    name: "Any process or browser tab on the same machine"
+    evidence: "src/server.js:140, src/server.js:251"
+    note: "Can reach the loopback listener. No Origin, Host, or Content-Type check."
   - id: reviewer
     kind: human
-    name: "Staff reviewer"
-    evidence: "src/requests.js:97"
-    note: "Calls startReview and decide directly. Identity is the reviewerId string the caller supplies."
-  - id: gateway_planned
-    kind: external
-    name: "Public API gateway (planned)"
-    evidence: "operator interview 2026-10-15 — not present in code"
-    note: "Added by the operator. Marks where the Public Internet boundary will sit once an HTTP layer exists."
+    name: "Staff reviewer - in-process caller"
+    evidence: "src/requests.js:168, src/requests.js:243, src/requests.js:266"
+    note: "Calls reviewer functions directly. No HTTP route yet."
+  - id: console
+    kind: operator
+    name: "Operator terminal"
+    evidence: "src/server.js:269"
 
 processes:
-  - id: submit
-    name: "submitRequest"
-    evidence: "src/requests.js:49"
-    note: "Validates presence of citizenId and serviceId, enforces the duplicate guard, issues a reference number."
-  - id: start_review
-    name: "startReview"
-    evidence: "src/requests.js:97"
-    note: "Requires reviewerId, enforces MAX_ACTIVE_REVIEWS (5), transitions SUBMITTED to UNDER_REVIEW."
-  - id: decide
-    name: "decide"
-    evidence: "src/requests.js:115"
-    note: "Transitions UNDER_REVIEW to APPROVED or REJECTED. Does not check which reviewer calls it."
-  - id: lookup
-    name: "lookup (getRequest, getRequestByReference, listRequestsByCitizen)"
-    evidence: "src/requests.js:74"
-    note: "Reads by id, by reference number, or by citizenId. No caller check."
+  - { id: listener, name: "listener + readBody + handleRequest router", evidence: "src/server.js:158, src/server.js:214, src/server.js:228" }
+  - { id: err_map, name: "errorResponse mapping table", evidence: "src/server.js:69" }
+  - { id: citizen_ops, name: "submitRequest / withdrawRequest / resubmitRequest", evidence: "src/requests.js:85, src/requests.js:221, src/requests.js:194" }
+  - { id: reviewer_ops, name: "startReview / returnForInfo / decide", evidence: "src/requests.js:243, src/requests.js:168, src/requests.js:266" }
+  - { id: lookup, name: "getRequest / getRequestByReference / listRequestsByCitizen", evidence: "src/requests.js:112, src/requests.js:119, src/requests.js:127" }
 
 stores:
-  - id: mem_store
-    kind: in-memory
-    name: "In-memory Map store"
-    evidence: "src/requests.js:11"
-    note: "Three Maps: requests, yearCounters, byReference. Per process. Not persisted. Cleared by resetStore."
+  - { id: mem_store, name: "requests, byReference, yearCounters (in-memory Maps)", evidence: "src/requests.js:30, src/requests.js:32, src/requests.js:34" }
+  - { id: snap_store, name: "citizenSnapshots (in-memory Map of deep copies)", evidence: "src/requests.js:36" }
 
 flows:
-  - source: citizen
-    target: submit
-    payload: "citizenId, serviceId, optional now"
-    crosses: caller_module
-  - source: citizen
-    target: lookup
-    payload: "request id, reference number, or citizenId"
-    crosses: caller_module
-  - source: reviewer
-    target: start_review
-    payload: "request id, reviewerId"
-    crosses: caller_module
-  - source: reviewer
-    target: decide
-    payload: "request id, decision"
-    crosses: caller_module
-  - source: submit
-    target: mem_store
-    payload: "request record (id, referenceNumber, citizenId, serviceId, status, history)"
-    crosses: none
-  - source: start_review
-    target: mem_store
-    payload: "reviewerId, status, history entry"
-    crosses: none
-  - source: decide
-    target: mem_store
-    payload: "status, history entry"
-    crosses: none
-  - source: lookup
-    target: mem_store
-    payload: "read of request records"
-    crosses: none
-  - source: gateway_planned
-    target: submit
-    payload: "planned: HTTP request body"
-    crosses: public_internet_planned
+  - { source: citizen, target: listener, label: "JSON body: citizenId PII, serviceId; path: request id, reference, citizenId PII" }
+  - { source: local, target: listener, label: "same requests as a citizen, any Content-Type" }
+  - { source: listener, target: citizen, label: "full records incl. citizenId PII and return notes PII" }
+  - { source: listener, target: local, label: "same responses" }
+  - { source: listener, target: citizen_ops, label: "body fields and path params as asserted" }
+  - { source: listener, target: lookup, label: "request id, reference number, citizenId PII" }
+  - { source: citizen_ops, target: err_map, label: "Error message may embed citizenId PII and referenceNumber" }
+  - { source: lookup, target: err_map, label: "Error message embeds id or reference" }
+  - { source: err_map, target: listener, label: "code, message, referenceNumber, reviewerId" }
+  - { source: listener, target: console, label: "bound address only" }
+  - { source: reviewer, target: reviewer_ops, label: "request id, reviewerId, return note PII, decision" }
+  - { source: citizen_ops, target: mem_store, label: "request record incl. citizenId PII" }
+  - { source: reviewer_ops, target: mem_store, label: "reviewerId, status, history entry incl. return note PII" }
+  - { source: lookup, target: mem_store, label: "read request records" }
+  - { source: lookup, target: snap_store, label: "read and rebuild citizen copies incl. citizenId PII" }
 
 boundaries:
-  - id: caller_module
-    name: "Caller ↔ Request lifecycle module"
-    kind: trust
-    status: present
-    note: "The module trusts citizenId and reviewerId exactly as the caller asserts them. No authentication or authorisation."
-  - id: public_internet_planned
-    name: "Public Internet ↔ Backend (planned)"
-    kind: network
-    status: planned
-    note: "Operator-added. No HTTP layer exists today. Recorded so the threat model can reason about the future surface."
+  - { id: http_zone, name: "HTTP listener on 127.0.0.1 (no auth, no Origin check)", children: [listener, err_map] }
+  - { id: module_zone, name: "Request lifecycle module (trusts caller-asserted ids)", children: [citizen_ops, reviewer_ops, lookup] }
+  - { id: store_zone, name: "In-process store (same process, no credential gate)", children: [mem_store, snap_store] }
 
 classifications:
-  - element: "request.citizenId"
-    label: pii
-    pathway: operator interview
-    evidence: "src/requests.js:64"
-    note: "Operator confirmed: a national ID or similar direct identifier of a natural person."
-  - element: "request.reviewerId"
-    label: internal
-    pathway: operator interview
-    evidence: "src/requests.js:111"
-    note: "Operator confirmed: a role or desk id, not a person."
-  - element: "request.referenceNumber"
-    label: internal
-    pathway: agent read
-    evidence: "src/requests.js:63"
-    note: "KH-YYYY-NNNNNN. Quoted by the citizen. Links to a citizenId inside the store, so treat as a PII lookup key."
-  - element: "request.serviceId"
-    label: internal
-    pathway: agent read
-    evidence: "src/requests.js:65"
-  - element: "request.history[].at"
-    label: internal
-    pathway: agent read
-    evidence: "src/requests.js:91"
-  - element: "error.message (duplicate guard)"
-    label: pii
-    pathway: agent read
-    evidence: "src/requests.js:55"
-    note: "The DUPLICATE_REQUEST error message embeds citizenId and referenceNumber. If surfaced to a client, it leaks PII."
+  - { label: pii, element: "request.citizenId", pathway: "operator interview 2026-10-15", evidence: "src/requests.js:101" }
+  - { label: pii, element: "citizenId path segment", pathway: "agent read", evidence: "src/server.js:101" }
+  - { label: pii, element: "history[].note", pathway: "operator interview 2026-10-17", evidence: "src/requests.js:154" }
+  - { label: pii, element: "error.message on DUPLICATE_REQUEST and NOT_REQUEST_OWNER", pathway: "agent read", evidence: "src/requests.js:91, :199, :226; src/server.js:87" }
+  - { label: pii, element: "citizenSnapshots records", pathway: "agent read", evidence: "src/requests.js:36, :134" }
+  - { label: internal, element: "request.reviewerId", pathway: "operator interview 2026-10-15", evidence: "src/requests.js:258" }
+  - { label: internal, element: "request.referenceNumber", pathway: "agent read", evidence: "src/requests.js:100" }
+  - { label: internal, element: "request.serviceId", pathway: "agent read", evidence: "src/requests.js:102" }
+  - { label: internal, element: "request.history[].at", pathway: "agent read", evidence: "src/requests.js:104" }
 
-summary:
-  actors: 3
-  processes: 4
-  stores: 1
-  flows: 9
-  boundaries: 2
-  classifications: { pii: 2, pci: 0, secrets: 0, internal: 4 }
+drift_since_2026-10-15:
+  added:
+    - "local actor"
+    - "console actor"
+    - "listener"
+    - "err_map"
+    - "citizen_ops: withdraw and resubmit"
+    - "reviewer_ops: returnForInfo"
+    - "snap_store"
+    - "http_zone boundary"
+    - "history[].note PII"
+    - "citizenId path segment PII"
+  removed: ["Public API gateway - planned"]
