@@ -9,7 +9,7 @@ Khidma is a demo slice of a fictional government e-services portal. A citizen su
 ## Tech stack
 
 - Language / runtime: JavaScript (ES modules) on Node.js >= 20
-- Framework: none. Plain module, no HTTP server.
+- Framework: none. The HTTP server uses Node's built-in `http` module.
 - Database: none. Requests live in an in-process `Map` and reset on restart.
 - Test framework: Node built-in test runner (`node --test`)
 
@@ -27,13 +27,15 @@ npm test
 # lint
 # (no lint script defined)
 # run / dev
-# (no run script — import src/requests.js directly)
+npm start   # http://127.0.0.1:3000, set PORT to change
 ```
 
 ## Project layout
 
 - `src/requests.js` — the request lifecycle: `submitRequest`, `withdrawRequest`, `startReview`, `returnForInfo`, `resubmitRequest`, `decide`, `getRequest`, `getRequestByReference`, `listRequestsByCitizen`, `resetStore`
 - `test/requests.test.js` — one `test()` per rule, `beforeEach(resetStore)` (27 tests at the 2026-10-15 handover)
+- `src/server.js` — the local HTTP shell: `handleRequest` (pure router, request in and status plus body out), `errorResponse` (the one error-mapping table), `startServer({ port })`. Citizen routes only so far.
+- `test/server.test.js` — one test per route, one per error family, one socket round trip on port 0
 - `tickets/` — work items as markdown (`KH-NNN.md`). KH-101, KH-103, KH-106 are done. KH-107 and KH-109 were open at the 2026-10-15 handover. Check GitHub Issues for current status.
 - `.squad/` — squad-kit plans and story intakes for the three implemented tickets
 - `.claude/commands/` — squad-kit slash commands (`/squad-plan`, `/squad-new-story`)
@@ -46,7 +48,8 @@ npm test
 - Four business-rule errors carry a `code` property: `DUPLICATE_REQUEST`, `REVIEWER_AT_CAPACITY`, `NOT_REQUEST_OWNER`, and `NOT_ASSIGNED_REVIEWER`. Plain validation and state errors carry none. Add a code when you add a new business-rule error.
 - `submitRequest`, `withdrawRequest`, `returnForInfo`, and `resubmitRequest` accept an injected `now`. `transition()` takes an optional `now` and an optional `note`, but `startReview` and `decide` do not pass `now` yet. Prefer injected time in new code.
 - Tickets ask for one test per rule and no new dependencies. Keep both.
-- No TypeScript, no lint config. Write plain ES modules that match the existing style.
+- The server owns no business rules. A handler passes its input straight to `src/requests.js` and never checks status, ownership, or counts. Add a rule to the module with a KH ticket and tests, never to a route.
+- No TypeScript. Write plain ES modules with `// @ts-check` JSDoc types that match the existing style.
 
 ## Gotchas
 
