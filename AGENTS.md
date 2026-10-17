@@ -15,17 +15,19 @@ Khidma is a demo slice of a fictional government e-services portal. A citizen su
 
 ## Commands
 
-All commands were verified on 2026-10-15. No install step is needed because the repo has zero dependencies.
+All commands were verified on 2026-10-17. The server and module have no runtime dependencies. `npm install` fetches dev tooling only (ESLint, TypeScript for `tsc --noEmit`).
 
 ```bash
 # install
-# (nothing to install — zero dependencies)
+npm install   # dev tooling only
 # build
 # (no build script defined)
 # test
 npm test
 # lint
-# (no lint script defined)
+npm run lint
+# typecheck
+npm run typecheck
 # run / dev
 npm start   # http://127.0.0.1:3000, set PORT to change
 ```

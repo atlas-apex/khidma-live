@@ -141,6 +141,12 @@ test('malformed JSON returns 400 before the module is called', () => {
   assert.equal(res.body.code, 'MALFORMED_JSON');
 });
 
+test('a path segment that is not valid URL encoding returns 400', () => {
+  const res = get('/requests/%E0%A4%A');
+  assert.equal(res.status, 400);
+  assert.equal(res.body.code, 'MALFORMED_PATH');
+});
+
 test('an unknown route returns 404', () => {
   const res = get('/nothing/here');
   assert.equal(res.status, 404);

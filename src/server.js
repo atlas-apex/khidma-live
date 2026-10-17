@@ -168,8 +168,12 @@ export function handleRequest({ method, path, rawBody }) {
     }
     const parsed = parseBody(rawBody);
     if (!parsed.ok) return parsed.response;
+    const params = decodeParams(match.groups ?? {});
+    if (params === null) {
+      return { status: 400, body: { code: 'MALFORMED_PATH', message: 'Path segment is not valid URL encoding' } };
+    }
     try {
-      return route.handle(decodeParams(match.groups ?? {}), parsed.body);
+      return route.handle(params, parsed.body);
     } catch (error) {
       return errorResponse(error);
     }
@@ -185,13 +189,19 @@ export function handleRequest({ method, path, rawBody }) {
 }
 
 /**
+ * Decode path parameters. Returns null when a segment is not valid URL
+ * encoding, so the caller can answer 400 instead of 500.
  * @param {Record<string, string>} groups
- * @returns {Record<string, string>}
+ * @returns {Record<string, string> | null}
  */
 function decodeParams(groups) {
   /** @type {Record<string, string>} */
   const out = {};
-  for (const [key, value] of Object.entries(groups)) out[key] = decodeURIComponent(value);
+  try {
+    for (const [key, value] of Object.entries(groups)) out[key] = decodeURIComponent(value);
+  } catch {
+    return null;
+  }
   return out;
 }
 
@@ -247,10 +257,21 @@ export function startServer({ port = DEFAULT_PORT, host = DEFAULT_HOST } = {}) {
 
 const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
-  const port = Number(process.env.PORT ?? DEFAULT_PORT);
-  startServer({ port }).then((server) => {
-    const address = /** @type {import('node:net').AddressInfo} */ (server.address());
-    console.log(`Khidma demo server listening on http://${address.address}:${address.port}`);
-    console.log('Fictional demo. In-memory store. No sign-in. State resets on restart.');
-  });
+  const rawPort = process.env.PORT;
+  const port = rawPort === undefined || rawPort === '' ? DEFAULT_PORT : Number(rawPort);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.error(`PORT must be a whole number from 0 to 65535, got "${rawPort}"`);
+    process.exit(1);
+  }
+  startServer({ port })
+    .then((server) => {
+      const address = /** @type {import('node:net').AddressInfo} */ (server.address());
+      console.log(`Khidma demo server listening on http://${address.address}:${address.port}`);
+      console.log('Fictional demo. In-memory store. No sign-in. State resets on restart.');
+    })
+    .catch((/** @type {NodeJS.ErrnoException} */ error) => {
+      const reason = error.code === 'EADDRINUSE' ? `port ${port} is already in use` : error.message;
+      console.error(`Khidma demo server could not start: ${reason}`);
+      process.exit(1);
+    });
 }

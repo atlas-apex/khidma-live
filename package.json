@@ -1,7 +1,7 @@
 {
   "name": "khidma",
   "version": "0.1.0",
-  "description": "Khidma \u2014 a fictional government e-services portal (demo starter)",
+  "description": "Khidma — a fictional government e-services portal (demo starter)",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
