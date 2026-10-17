@@ -36,11 +36,11 @@
       "criterionId": "ac1-3",
       "status": "partially-verified",
       "evidence": [
-        "test/server.test.js lines 64-80 assert 409 DUPLICATE_REQUEST and 403 NOT_REQUEST_OWNER through the routes.",
+        "test/server.test.js lines 64-80 assert 409 DUPLICATE_REQUEST and 403 NOT_REQUEST_OWNER through the routes. The NOT_REQUEST_OWNER test does not check the message.",
         "test/server.test.js line 81 asserts REVIEWER_AT_CAPACITY 409 and NOT_ASSIGNED_REVIEWER 403 through errorResponse only.",
         "test/server.test.js lines 106-128 assert a validation 400, a state 409, and a not-found 404 through the routes."
       ],
-      "explanation": "Missing: REVIEWER_AT_CAPACITY and NOT_ASSIGNED_REVIEWER do not reach a client through a route yet. Next: add route tests for both codes with the reviewer routes."
+      "explanation": "Missing: route tests for REVIEWER_AT_CAPACITY and NOT_ASSIGNED_REVIEWER, and a message check in the NOT_REQUEST_OWNER route test. Next: add these assertions with the reviewer routes."
     },
     {
       "criterionId": "ac1-4",
@@ -102,7 +102,7 @@
       "evidence": [
         "The repo has no public/ directory and no HTML, CSS, or browser JavaScript at ec7d132."
       ],
-      "explanation": "Missing: no screen renders status markers or history. Next: give each status a marker in the shared stylesheet."
+      "explanation": "Missing: no screen renders status markers or history. Next: give each status a marker in the shared stylesheet and list history per request."
     },
     {
       "criterionId": "ac2-4",
